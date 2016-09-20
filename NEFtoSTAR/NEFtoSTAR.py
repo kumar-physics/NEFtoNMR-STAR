@@ -91,86 +91,82 @@ class NEFtoSTAR(object):
         outfile=file_path+"/"+out_file_name
         with open(outfile,'w') as strfile:
             strfile.write(str(self.outData))
+            
     
     def convert(self):
-        if ".nef" in self.inFile:                                          #lookup index(li) retrieve index(ri) 0-nef 1-star-auth-tag,2-star-tag 
-            (li,ri)=(0,1)
-            self.nef2star=True                                                   # for net to star li=0 and ri=1 and for star to nef li=1 and ri=0
+        if ".nef" in self.inFile:
+            self.nef2star=True
         elif ".str" in self.inFile:
-            (li,ri)=(1,0)
             self.nef2star=False
         else:
-            print "Invalid input file"
+            print "Unsupported input file or file extension may be wrong"
             exit(1)
-        self.inData=bmrb.Entry.from_file(self.inFile)                     #parse the NEF file
-        self.outData=bmrb.Entry.from_scratch(self.inData.entry_id)        # creates an empty NMR-STAR data structure
-        for saveframe in self.inData:                                      # for every saveframe
-            sf=bmrb.Saveframe.from_scratch(saveframe.name)                  # create an equivalent NMR-STAR saveframe 
-            for tag in saveframe.tags:                                      # for every tag in the saveframe 
-                map_auth_tag=False
-                in_tag="%s.%s"%(saveframe.tag_prefix,tag[0])
-                out_tag=self.map[ri][self.map[li].index(in_tag)]            # get the equivalent tag from the mapping 
-                outs_tag=self.map[2][self.map[li].index(in_tag)]
-                if out_tag!=outs_tag : map_auth_tag=True
-                if out_tag!="":
-                    if out_tag.split(".")[1]=="Sf_category" or out_tag.split(".")[1]=="sf_category":
-                        out_category=self.map[ri][self.map[li].index(tag[1])] # Only for saveframe category find the corresponding NMR-STAR category
-                        sf.add_tag(out_tag,out_category)                   # add the tag value
-                    else:
-                        sf.add_tag(out_tag,tag[1])                         # for rest of the tags simply copy the tag value
-                        if map_auth_tag : sf.add_tag(outs_tag,tag[1])
-            for loop in saveframe:                                          # for every loop in the saveframve
-                ll=bmrb.Loop.from_scratch()                                 # create a NMR-STAR loop from the scratch 
-                missing_col=[]
-                star_col=[]                                              # to collect the information about missing columns in the loop
-                for coln in loop.columns:
-                    map_authl_tag=False                                   # for every columnn in the loop
-                    inl_tag="%s.%s"%(loop.category,coln)                     # extract the column name tag
-                    outl_tag=self.map[ri][self.map[li].index(inl_tag)]           # find the equivalent NMR-STAR column name tag
-                    star_outl_tag=self.map[2][self.map[li].index(inl_tag)]
-                    if outl_tag != star_outl_tag : map_authl_tag=True
-                    if outl_tag!="":                                          # If there is no mapping add the column index to missing column 
-                        ll.add_column(outl_tag)
-                        if map_authl_tag:
-                            ll.add_column(star_outl_tag)
-                            star_col.append(loop.columns.index(coln))           # otherwise add column to loop
-                    else:
-                        missing_col.append(loop.columns.index(coln))
-                if len(missing_col)==0:
-                    al=[]
-                    rl=[]
-                    for k in star_col:
-                        if "atom_name" in loop.columns[k]:
-                            al.append(k)
-                            rl.append([loop.columns.index(x) for x in loop.columns  if loop.columns[k].replace('atom_name','residue_type')==x][0] )   
-                    print al,rl,star_col  ,loop.columns                             # If there is no missing column copy the data
-                    for dat in loop.data:
-                        if len(star_col)!=0:
-                            dat2=dat[:]
-                            if len(al)>0:
-                                for (r,a) in zip(rl,al):
-                                    dat2=dat[:]
-                                    for k in star_col:
-                                        if a==k and dat[:][r] in self.NMR_STAR_atom_names.keys():
-                                            alist=self.get_atm_list(dat[:][r], dat[:][a])
-                                            print alist
-                                            if len(alist)>1:
-                                                for at in alist:
-                                                    dat2.insert(dat2.index(dat[:][k]),at)
-                                            else:
-                                                dat2.insert(dat2.index(dat[:][k]),dat[:][k])
-                                        else:
-                                            dat2.insert(dat2.index(dat[:][k]),dat[:][k])
-                                        print dat2[:]
-                                        ll.add_data(dat2[:])
+        self.inData=bmrb.Entry.from_file(self.inFile)
+        self.outData=bmrb.Entry.from_scratch(self.inData.entry_id)
+        if self.nef2star:
+            for saveframe in self.inData:
+                sf=bmrb.Saveframe.from_scratch(saveframe.name)
+                for tag in saveframe.tags:
+                    in_tag="%s.%s"%(saveframe.tag_prefix,tag[0])
+                    out_auth_tag=self.map[1][self.map[0].index(in_tag)]
+                    out_star_tag=self.map[2][self.map[0].index(in_tag)]
+                    if out_auth_tag!="" and out_star_tag!="":
+                        if out_auth_tag==out_star_tag:
+                            if out_star_tag.split(".")[1]=="Sf_category" or out_star_tag.split(".")[1]=="sf_category":
+                                out_category=self.map[1][self.map[0].index(tag[1])]
+                                sf.add_tag(out_star_tag,out_category)
                             else:
-                                for k in star_col:
-                                    dat2.insert(dat2.index(dat[:][k]),dat[:][k])
+                                sf.add_tag(out_star_tag,tag[1])
                         else:
-                            print dat2[:]
-                            ll.add_data(dat[:])
-                if ll.data: sf.add_loop(ll)                                             # add the loop to saveframe
-            self.outData.add_saveframe(sf)                                 # add the saveframe to data structure
+                            sf.add_tag(out_auth_tag,tag[1])
+                            sf.add_tag(out_star_tag,tag[1])
+                            print out_auth_tag,out_star_tag
+                for loop in saveframe:
+                    ll=bmrb.Loop.from_scratch()
+                    missing_col=[]
+                    auth_col=[]
+                    for coln in loop.columns:
+                        inl_tag="%s.%s"%(loop.category,coln)
+                        outl_auth_tag=self.map[1][self.map[0].index(inl_tag)]
+                        outl_star_tag=self.map[2][self.map[0].index(inl_tag)]
+                        if outl_auth_tag!="" and outl_star_tag!="":
+                            if outl_auth_tag!=outl_star_tag:
+                                auth_col.append(loop.columns.index(coln))
+                                ll.add_column(outl_auth_tag)
+                                ll.add_column(outl_star_tag)
+                            else:
+                                ll.add_column(outl_star_tag)
+                        else:
+                            missing_col.append(loop.columns.index(coln))
+                    atm_id=[i for i in range(len(ll.columns)) if "Atom_ID" in ll.columns[i]]
+                    if sf.category=="assigned_chemical_shifts":
+                        ll.add_column("_Atom_chem_shift.Ambiguity_code")
+                    print atm_id,sf.category
+                    if len(missing_col)==0:
+                        for dat in loop.data:
+                            if len(auth_col)==0:
+                                ll.add_data(dat[:])
+                            else:
+                                if sf.category=="assigned_chemical_shifts":
+                                    atm_index=loop.columns.index("atom_name")
+                                    res_index=loop.columns.index("residue_type")
+                                    print dat[:]
+                                    atm_list=self.get_atm_list(dat[:][res_index], dat[:][atm_index])
+                                    if len(atm_list)==0:
+                                        atm_list.append(dat[:][atm_index])
+                                    print atm_list
+                                    for atm in atm_list:
+                                        dat2=dat[:]
+                                        for k in auth_col:
+                                            if k != atm_index:
+                                                dat2.insert(dat2.index(dat[:][k])+1,dat[:][k])
+                                            else:
+                                                dat2.insert(dat2.index(dat[:][k])+1,atm)
+                                        dat2.append('1')
+                                        ll.add_data(dat2)
+                                    
+                    if ll.data: sf.add_loop(ll)                      
+                self.outData.add_saveframe(sf)                                 # add the saveframe to data structure
         (file_path,file_name)=ntpath.split(self.inFile)                        # write output file
         if file_path=="": file_path="."
         if ".nef" in file_name:
@@ -180,6 +176,18 @@ class NEFtoSTAR(object):
         outfile=file_path+"/"+out_file_name
         with open(outfile,'w') as strfile:
             strfile.write(str(self.outData))
+                                
+                        
+                        
+                    
+                    
+                    
+                            
+                        
+                
+           
+              
+    
                         
     def get_atm_list(self,res,nefAtom):
         try:
@@ -208,9 +216,10 @@ class NEFtoSTAR(object):
                     if len(alist)!=2:
                         alist=[]
                     elif refatm[6]=="Y":
-                        alist.reverse()
+                        #alist.reverse()[]
+                        alist=alist[-1:]
                     elif refatm[6]=="X":
-                        alist
+                        alist=alist[:1]
                     else:
                         print "Something wrong"
                         
