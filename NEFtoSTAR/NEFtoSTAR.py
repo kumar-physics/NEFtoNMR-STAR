@@ -154,7 +154,7 @@ class NEFtoSTAR(object):
                         ll.add_column("_Gen_dist_constraint.Member_logic_code")
                         const_id=1
                     
-                    print atm_id,sf.category
+                    #print atm_id,sf.category
                     if len(missing_col)==0:
                         for dat in loop.data:
                             if len(auth_col)==0:
@@ -312,7 +312,7 @@ class NEFtoSTAR(object):
    
         
 if __name__=="__main__":
-    nt=NEFtoSTAR('/home/kumaran/git/NEF/data_0_2/CSROSETTA_test1.nef')
+    nt=NEFtoSTAR('/home/kumaran/git/NEF/data_0_2/CCPN_H1GI_clean.nef')
     #nt.translate()
     nt.convert()
     
