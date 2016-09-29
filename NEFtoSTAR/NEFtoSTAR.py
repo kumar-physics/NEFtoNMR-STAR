@@ -8,6 +8,7 @@ import sys,csv,ntpath,re
 sys.path.append('../PyNMRSTAR') #NMR-STAR and NEF-Parser added as a submodule and imported into this project. This is a separate git repository
 import bmrb
 
+
 class NEFtoSTAR(object):
     '''
     Translates NEF file to NMR-STAR file
@@ -34,7 +35,15 @@ class NEFtoSTAR(object):
                          'VAL': ['N', 'CA', 'C', "O'", 'CB', 'CG1', 'CG2', 'H', 'HA', 'HB', 'HG11', 'HG12', 'HG13', 'HG21', 'HG22', 'HG23', "O''"],
                          'GLU': ['N', 'CA', 'C', 'O', 'CB', 'CG', 'CD', 'OE1', 'OE2', 'H', 'HA', 'HB2', 'HB3', 'HG2', 'HG3', 'HE2'],
                          'TYR': ['N', 'CA', 'C', 'O', 'CB', 'CG', 'CD1', 'CD2', 'CE1', 'CE2', 'CZ', 'OH', 'H', 'HA', 'HB2', 'HB3', 'HD1', 'HD2', 'HE1', 'HE2', 'HH'],
-                         'MET': ['N', 'CA', 'C', 'O', 'CB', 'CG', 'SD', 'CE', 'H', 'HA', 'HB2', 'HB3', 'HG2', 'HG3', 'HE1', 'HE2', 'HE3']}
+                         'MET': ['N', 'CA', 'C', 'O', 'CB', 'CG', 'SD', 'CE', 'H', 'HA', 'HB2', 'HB3', 'HG2', 'HG3', 'HE1', 'HE2', 'HE3'],
+                         'A': ["C3'", "O3'", "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N9', 'C8', 'N7', 'C5', 'C6', 'N6', 'N1', 'C2', 'N3', 'C4', "O2'", "H5'", "H5''", "H4'", "H3'", "H2'", "HO2'", "H1'", 'H8', 'H61', 'H62', 'H2', "HO5'"],
+                         'C': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N1', 'C6', 'C5', 'C4', 'N4', 'N3', 'C2', 'O2', "O2'", "H5'", "H5''", "H4'", "H3'", "H2'", "HO2'", "H1'", 'H41', 'H42', 'H5', 'H6'],
+                         'G': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N9', 'C8', 'N7', 'C5', 'C6', 'O6', 'N1', 'C2', 'N2', 'N3', 'C4', "O2'", "H5'", "H5''", "H4'", "H3'", "H2'", "HO2'", "H1'", 'H8', 'H1', 'H21', 'H22'],
+                         'U': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N1', 'C6', 'C5', 'C4', 'O4', 'N3', 'C2', 'O2', "O2'", "H5'", "H5''", "H4'", "H3'", "H2'", "HO2'", "H1'", 'H3', 'H5', 'H6', "HO3'"],
+                         'DA': ["C3'", "O3'", "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N9', 'C8', 'N7', 'C5', 'C6', 'N6', 'N1', 'C2', 'N3', 'C4', "H5'", "H5''", "H4'", "H3'", "H2'", "H2''", "H1'", 'H8', 'H61', 'H62', 'H2', "HO5'"],
+                         'DC': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N1', 'C6', 'C5', 'C4', 'N4', 'N3', 'C2', 'O2', "H5'", "H5''", "H4'", "H3'", "H2'", "H2''", "H1'", 'H41', 'H42', 'H5', 'H6'],
+                         'DG': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N9', 'C8', 'N7', 'C5', 'C6', 'O6', 'N1', 'C2', 'N2', 'N3', 'C4', "H5'", "H5''", "H4'", "H3'", "H2'", "H2''", "H1'", 'H8', 'H1', 'H21', 'H22'],
+                         'DT': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N1', 'C6', 'C5', 'C4', 'O4', 'N3', 'C2', 'O2', 'C7', "H5'", "H5''", "H4'", "H3'", "H2'", "H2''", "H1'", 'H3', 'H71', 'H72', 'H73', 'H6', "HO3'"]}
     
     def read_map_file(self):
         '''Reads the NEF_NMRSTAR_equivalence.csv file and create a mapping as a list'''
@@ -141,6 +150,10 @@ class NEFtoSTAR(object):
                     atm_id=[i for i in range(len(ll.columns)) if "Atom_ID" in ll.columns[i]]
                     if sf.category=="assigned_chemical_shifts":
                         ll.add_column("_Atom_chem_shift.Ambiguity_code")
+                    if sf.category=="general_distance_constraints":
+                        ll.add_column("_Gen_dist_constraint.Member_logic_code")
+                        const_id=1
+                    
                     print atm_id,sf.category
                     if len(missing_col)==0:
                         for dat in loop.data:
@@ -150,20 +163,66 @@ class NEFtoSTAR(object):
                                 if sf.category=="assigned_chemical_shifts":
                                     atm_index=loop.columns.index("atom_name")
                                     res_index=loop.columns.index("residue_type")
-                                    print dat[:]
                                     atm_list=self.get_atm_list(dat[:][res_index], dat[:][atm_index])
                                     if len(atm_list)==0:
                                         atm_list.append(dat[:][atm_index])
-                                    print atm_list
                                     for atm in atm_list:
                                         dat2=dat[:]
                                         for k in auth_col:
                                             if k != atm_index:
-                                                dat2.insert(dat2.index(dat[:][k])+1,dat[:][k])
+                                                dat2.insert(k+auth_col.index(k)+1,dat[:][k])
                                             else:
-                                                dat2.insert(dat2.index(dat[:][k])+1,atm)
-                                        dat2.append('1')
+                                                dat2.insert(k+auth_col.index(k)+1,atm)
+                                        if len(atm_list)==1:
+                                            dat2.append('1')
+                                        else:
+                                            dat2.append('2')
                                         ll.add_data(dat2)
+                                elif sf.category=="general_distance_constraints":
+                                    atm_index_1=loop.columns.index("atom_name_1")
+                                    res_index_1=loop.columns.index("residue_type_1")
+                                    atm_index_2=loop.columns.index("atom_name_2")
+                                    res_index_2=loop.columns.index("residue_type_2")
+                                    atm_list_1=self.get_atm_list(dat[:][res_index_1], dat[:][atm_index_1])
+                                    atm_list_2=self.get_atm_list(dat[:][res_index_2], dat[:][atm_index_2])
+                                    if len(atm_list_1)==0:
+                                        atm_list_1.append(dat[:][atm_index_1])
+                                    if len(atm_list_2)==0:
+                                        atm_list_2.append(dat[:][atm_index_2])
+                                    if len(atm_list_1)==1 and len(atm_list_2)==1:
+                                        dat2=dat[:]
+                                        #print auth_col,ll.columns
+                                        for k in auth_col:
+                                            dat2.insert(k+auth_col.index(k)+1,dat[:][k])
+                                        dat2[0]="%d"%(const_id)
+                                        dat2.append('.')
+                                        ll.add_data(dat2)
+                                        const_id+=1
+                                    else:
+                                        for atm1 in atm_list_1:
+                                            for atm2 in atm_list_2:
+                                                dat2=dat[:]
+                                                for k in auth_col:
+                                                    if k==atm_index_1:
+                                                        dat2.insert(k+auth_col.index(k)+1,atm1)
+                                                    elif k==atm_index_2:
+                                                        dat2.insert(k+auth_col.index(k)+1,atm2)
+                                                    else:
+                                                        dat2.insert(k+auth_col.index(k)+1,dat[:][k])
+                                                dat2.append('OR')
+                                                dat2[0]="%d"%(const_id)
+                                                ll.add_data(dat2)
+                                                const_id+=1
+                                        
+                                        
+                                    
+                                    
+                                else:
+                                    dat2=dat[:]
+                                    #print auth_col,ll.columns
+                                    for k in auth_col:
+                                        dat2.insert(k+auth_col.index(k)+1,dat[:][k])
+                                    ll.add_data(dat2[:])
                                     
                     if ll.data: sf.add_loop(ll)                      
                 self.outData.add_saveframe(sf)                                 # add the saveframe to data structure
@@ -178,7 +237,8 @@ class NEFtoSTAR(object):
             strfile.write(str(self.outData))
                                 
                         
-                        
+    
+        
                     
                     
                     
@@ -194,10 +254,10 @@ class NEFtoSTAR(object):
             atms=self.NMR_STAR_atom_names[res]
             alist=[]
             try:
-                refatm=re.findall(r'(\S+)([XY])([%*])|(\S+)([%*])|(\S+)([XY])',nefAtom)[0]  
+                refatm=re.findall(r'(\S+)([XY])([%*])$|(\S+)([%*])$|(\S+)([XY]$)',nefAtom)[0]  
                 set=[refatm.index(i) for i in refatm if i!=""]
                 if set==[0,1,2]:
-                    pattern=re.compile(r'%s\d\d+'%(refatm[0]))
+                    pattern=re.compile(r'%s\S\d+'%(refatm[0]))
                     alist=[i for i in atms if re.search(pattern, i)]
                     if refatm[1]=="Y":
                         alist.reverse()
@@ -211,7 +271,7 @@ class NEFtoSTAR(object):
                     alist=[i for i in atms if re.search(pattern, i)]
                     
                 elif set==[5,6]:
-                    pattern=re.compile(r'%s\d+'%(refatm[5]))
+                    pattern=re.compile(r'%s\S+'%(refatm[5]))
                     alist=[i for i in atms if re.search(pattern, i)]
                     if len(alist)!=2:
                         alist=[]
@@ -232,7 +292,7 @@ class NEFtoSTAR(object):
                 if nefAtom in atms:
                     alist.append(nefAtom)
         except KeyError:
-            print "Residue not found"
+            print "Residue not found",res,nefAtom
             alist=[]
         return alist                    
                     
@@ -249,8 +309,10 @@ class NEFtoSTAR(object):
         '''
         self.inFile=inFile
         self.read_map_file()
+   
         
 if __name__=="__main__":
-    nt=NEFtoSTAR('/home/kumaran/git/NEF/data/CCPN_1nk2_docr.nef')
+    nt=NEFtoSTAR('/home/kumaran/git/NEF/data_0_2/CSROSETTA_test1.nef')
     #nt.translate()
     nt.convert()
+    
