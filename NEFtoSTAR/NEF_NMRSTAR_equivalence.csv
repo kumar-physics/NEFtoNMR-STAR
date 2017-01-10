@@ -1,3 +1,18 @@
+###########################################################################################
+#File       : NEF_NMRSTAR_equivalence.csv
+#Version    : 1.0 
+#Date       : Jan 09, 2017
+#Author     : Kumaran Baskaran   
+#Email      : kbaskaran@bmrb.wisc.edu
+############################################################################################
+#   This CSV file maps NEF v1.0  tags to NMR-STAR v3.2.0.1  
+#   The software specific data i.e tags and data which are not part of the standard NEF v1.0 dictionary will be stored in Details tag in relevant saveframes in NMR-STAR as a text block. 
+#   CSV explanation
+#   First Column : NEF saveframe/loop/tag
+#   Second Column : NMR-STAR saveframe/loop/tag (author tags i.e data copied from a NEF tag goes here ; example : HBx)
+#   Third Column : NMR-STAR saveframe/loop/tag (tanslated data goes here ; example HB2)
+############################################################################################
+#Saveframes
 nef_nmr_meta_data,entry_information,entry_information
 nef_molecular_system,assembly,assembly
 nef_chemical_shift_list,assigned_chemical_shifts,assigned_chemical_shifts
@@ -6,6 +21,7 @@ nef_dihedral_restraint_list,torsion_angle_contraints,torsion_angle_contraints
 nef_rdc_restraint_list,RDC_constraints,RDC_constraints
 nef_nmr_spectrum,spectral_peak_list,spectral_peak_list
 nef_peak_restraint_links,peak_constraint_links,peak_constraint_links
+#tags
 _nef_program_script.program_name,_Software_applied_methods.Software_name,_Software_applied_methods.Software_name
 _nef_program_script.script_name,_Software_applied_methods.Script_name,_Software_applied_methods.Script_name
 _nef_program_script.script,_Software_applied_methods.Script,_Software_applied_methods.Script
@@ -27,6 +43,7 @@ _nef_related_entries.database_name,_Related_entries.Database_name,_Related_entri
 _nef_related_entries.database_accession_code,_Related_entries.Database_accession_code,_Related_entries.Database_accession_code
 _nef_molecular_system.sf_category,_Assembly.Sf_category,_Assembly.Sf_category
 _nef_molecular_system.sf_framecode,_Assembly.Sf_framecode,_Assembly.Sf_framecode
+_nef_sequence.index,_Chem_comp_assembly.nef_index,_Chem_comp_assembly.nef_index
 _nef_sequence.chain_code,_Chem_comp_assembly.Auth_asym_ID,_Chem_comp_assembly.Entity_assembly_ID
 _nef_sequence.sequence_code,_Chem_comp_assembly.Auth_seq_ID,_Chem_comp_assembly.Seq_ID
 _nef_sequence.residue_name,_Chem_comp_assembly.Auth_comp_ID,_Chem_comp_assembly.Comp_ID

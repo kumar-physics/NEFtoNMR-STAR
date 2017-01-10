@@ -1,12 +1,33 @@
+#!/usr/bin/env python
+
 '''
 Created on Sep 15, 2016
 
+This script translates NEV v1.0 files to NMR-STAR v 3.2.0.1
+
+This script depends on 
+
+    * NMR-STAR parser provided along with this script 
+    * NEF_NMRSTAR_equivalence.csv file
+
 @author: kumaran
 '''
-
-import sys,csv,ntpath,re
-sys.path.append('../PyNMRSTAR') #NMR-STAR and NEF-Parser added as a submodule and imported into this project. This is a separate git repository
+import os
+import sys,csv,ntpath,re,time,datetime,string
+from Bio.MarkovModel import save
+(script_path,script_name)=ntpath.split(os.path.realpath(__file__))
+sys.path.append(script_path+'/../PyNMRSTAR') #NMR-STAR and NEF-Parser added as a submodule and imported into this project. This is a separate git repository
 import bmrb
+
+
+
+
+
+
+
+
+
+
 
 
 class NEFtoSTAR(object):
@@ -14,8 +35,13 @@ class NEFtoSTAR(object):
     Translates NEF file to NMR-STAR file
     '''
     #mapping file btween NEF and NMR-STAR
-    mapFile='NEF_NMRSTAR_equivalence.csv'
-    #Standard atom names for 20 standard amino acids
+    
+    mapFile=script_path+'/NEF_NMRSTAR_equivalence.csv'
+    __version__=1.0
+    def st(self,ts):
+        return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+    
+    #Standard atom names for 20 standard amino acids and 8 Nucleic acid 
     NMR_STAR_atom_names={'CYS': ['N', 'CA', 'C', 'O', 'CB', 'SG', 'H', 'HA', 'HB2', 'HB3', 'HG'],
                          'ASP': ['N', 'CA', 'C', 'O', 'CB', 'CG', 'OD1', 'OD2', 'H', 'HA', 'HB2', 'HB3', 'HD2'],
                          'SER': ['N', 'CA', 'C', 'O', 'CB', 'OG', 'H', 'HA', 'HB2', 'HB3', 'HG'],
@@ -45,13 +71,25 @@ class NEFtoSTAR(object):
                          'DG': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N9', 'C8', 'N7', 'C5', 'C6', 'O6', 'N1', 'C2', 'N2', 'N3', 'C4', "H5'", "H5''", "H4'", "H3'", "H2'", "H2''", "H1'", 'H8', 'H1', 'H21', 'H22'],
                          'DT': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N1', 'C6', 'C5', 'C4', 'O4', 'N3', 'C2', 'O2', 'C7', "H5'", "H5''", "H4'", "H3'", "H2'", "H2''", "H1'", 'H3', 'H71', 'H72', 'H73', 'H6', "HO3'"]}
     
+    def __init__(self, inFile):
+        '''
+        Constructor
+        '''
+        self.inFile=inFile
+        (self.inFilePath,self.inFileName)=ntpath.split(self.inFile)
+        self.read_map_file()
+        self.logFile=self.inFile.split("."+self.inFileName.split(".")[-1])[0]+"_.log"
+        self.outFile=self.inFile.split("."+self.inFileName.split(".")[-1])[0]+"_.str"
+        #print self.logFile
+        
     def read_map_file(self):
         '''Reads the NEF_NMRSTAR_equivalence.csv file and create a mapping as a list'''
         with open(self.mapFile,'rb') as csvfile:
             spamreader = csv.reader(csvfile,delimiter=',')
             map_dat=[]
             for r in spamreader:
-                if r.count('') != 10:
+                #print r
+                if r[0][0]!='#':
                     map_dat.append(r)
         self.map=map(list,zip(*map_dat))
     
@@ -130,6 +168,12 @@ class NEFtoSTAR(object):
             
     
     def convert(self):
+        self.logfile=open(self.logFile,'w')
+        self.logfile.write("\n%s:%s\n"%(string.ljust("Input",25),self.inFile))
+        self.logfile.write("%s:%s\n"%(string.ljust("Output",25),self.outFile))
+        self.logfile.write("%s:%s\n"%(string.ljust("Log ",25),self.logFile))
+        self.logfile.write("%s:%s\n"%(string.ljust("Translator Version",25),self.__version__))
+        self.logfile.write("%s:%s\n\n"%(string.ljust("Date",25),self.st(time.time())))
         if ".nef" in self.inFile:
             self.nef2star=True
         elif ".str" in self.inFile:
@@ -141,6 +185,7 @@ class NEFtoSTAR(object):
         self.outData=bmrb.Entry.from_scratch(self.inData.entry_id)
         if self.nef2star:
             for saveframe in self.inData:
+                self.details={}
                 if saveframe.get_tag("sf_category")[0] in self.map[0]:
                     sf=bmrb.Saveframe.from_scratch(saveframe.name)
                     for tag in saveframe.tags:
@@ -149,7 +194,8 @@ class NEFtoSTAR(object):
                             out_auth_tag=self.map[1][self.map[0].index(in_tag)]
                             out_star_tag=self.map[2][self.map[0].index(in_tag)]
                         except ValueError:
-                            print "Ignoring tag",in_tag
+                            self.logfile.write("%s\tSoftware specific tag %s ignored\n"%(self.st(time.time()),in_tag))
+                            self.details[tag[0]]=tag[1]
                             out_auth_tag=""
                             out_star_tag=""
                         if out_auth_tag!="" and out_star_tag!="":
@@ -173,7 +219,8 @@ class NEFtoSTAR(object):
                                 outl_auth_tag=self.map[1][self.map[0].index(inl_tag)]
                                 outl_star_tag=self.map[2][self.map[0].index(inl_tag)]
                             except ValueError:
-                                print "Ignoring tag",inl_tag
+                                self.logfile.write("%s\tSoftware specific tag %s ignored\n"%(self.st(time.time()),inl_tag))
+                                self.details[inl_tag]=str(loop.get_tag(inl_tag))
                                 outl_auth_tag=""
                                 outl_star_tag=""
                             if outl_auth_tag!="" and outl_star_tag!="":
@@ -291,26 +338,49 @@ class NEFtoSTAR(object):
                                     else:
                                         dat3=dat2[:]
                                     ll.add_data(dat3[:])
-                                    
-                        if ll.data: sf.add_loop(ll)                      
+                                       
+                        if ll.data: sf.add_loop(ll)
+                        #print sf
+                        #print "%s.Details"%(sf.tag_prefix)
+                        
+                    if self.details: 
+                        sf.add_tag("Details",str(self.details))
+                        self.logfile.write("%s\tSoftware specific tags fond in Saveframe %s;Copied to %s.Details tag\n"%(self.st(time.time()),saveframe.name,sf.tag_prefix))
+                                              
                     self.outData.add_saveframe(sf)
                 else:
-                    print "Ignoring saveframe",saveframe.name                                 # add the saveframe to data structure
-        (file_path,file_name)=ntpath.split(self.inFile)                        # write output file
-        if file_path=="": file_path="."
-        if ".nef" in file_name:
-            out_file_name="%s_.str"%(file_name.split(".nef")[0])
-            out_file_name2="%s_.nef"%(file_name.split(".nef")[0])
-        else:
-            out_file_name="%s_.nef"%(file_name.split(".str")[0])
-            out_file_name2="%s_.str"%(file_name.split(".str")[0])
-        outfile=file_path+"/"+out_file_name
-        outfile2=file_path+"/"+out_file_name2
+                    self.logfile.write("%s\tSoftware specific saveframe found; %s\n"%(self.st(time.time()),saveframe.name))
+                    sf=bmrb.Saveframe.from_scratch(saveframe.name,tag_prefix="_Software_specific_NEF_info_list")
+                    sf.add_tag("Sf_category","NEF_specific_software_saveframes")
+                    sf.add_tag("Sf_framecode",saveframe.name)
+                    sf.add_tag("nef_sf_category",saveframe.get_tag('sf_category')[0])
+                    sf.add_tag("nef_tag_prefix",saveframe.tag_prefix)
+                    ll=bmrb.Loop.from_scratch(category="_Software_specific_NEF_info")
+                    ll.add_column("nef_tag")
+                    ll.add_column("nef_data")
+                    for d in saveframe.tags:
+                        ll.add_data(d[:-1])
+                    for loop in saveframe:
+                        ll.add_data([loop.category,str(loop)])
+                    if ll.data: sf.add_loop(ll)
+                    self.outData.add_saveframe(sf)    
+                    #print "Ignoring saveframe",s                                 # add the saveframe to data structure
+#         (file_path,file_name)=ntpath.split(self.inFile)                        # write output file
+#         if file_path=="": file_path="."
+#         if ".nef" in file_name:
+#             out_file_name="%s_.str"%(file_name.split(".nef")[0])
+#             out_file_name2="%s_.nef"%(file_name.split(".nef")[0])
+#         else:
+#             out_file_name="%s_.nef"%(file_name.split(".str")[0])
+#             out_file_name2="%s_.str"%(file_name.split(".str")[0])
+#         outfile=file_path+"/"+out_file_name
+#         outfile2=file_path+"/"+out_file_name2
         #print outfile2,outfile
-        with open(outfile,'w') as strfile:
+        with open(self.outFile,'w') as strfile:
             strfile.write(str(self.outData))
-        with open(outfile2,'w') as strfile2:
-            strfile2.write(str(self.inData))
+        self.logfile.close()
+#         with open(outfile2,'w') as strfile2:
+#             strfile2.write(str(self.inData))
                                 
                         
     
@@ -368,7 +438,8 @@ class NEFtoSTAR(object):
                 if nefAtom in atms:
                     alist.append(nefAtom)
         except KeyError:
-            print "Residue not found",res,nefAtom
+            self.logfile.write("%s\tResidue not found,%s,%s\n"%(self.st(time.time()),res,nefAtom))
+            #print "Residue not found",res,nefAtom
             alist=[]
         return alist                    
                     
@@ -379,16 +450,13 @@ class NEFtoSTAR(object):
             if self.map[1][i]!=self.map[2][i]:
                 print self.map[0][i],self.map[1][i],self.map[2][i]
 
-    def __init__(self, inFile):
-        '''
-        Constructor
-        '''
-        self.inFile=inFile
-        self.read_map_file()
+    
    
         
 if __name__=="__main__":
-    nt=NEFtoSTAR("/home/kumaran/git/NEF/specification/Commented_Example.nef")
+    fname=sys.argv[1]
+    #nt=NEFtoSTAR("/home/kumaran/git/NEF/specification/Commented_Example.nef")
+    nt=NEFtoSTAR(fname)
     nt.convert()
     
     #neflist=["CCPN_1nk2_docr.nef", "CCPN_2mqq_docr.nef","CCPN_Commented_Example.nef","CCPN_Sec5Part3.nef","CCPN_2kko_docr.nef","CCPN_2mtv_docr.nef","CCPN_H1GI_clean.nef","CCPN_XplorNIH-simple.nef"]
