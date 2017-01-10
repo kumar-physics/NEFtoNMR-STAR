@@ -72,15 +72,13 @@ class NEFtoSTAR(object):
                          'DT': ['P', "C3'", "O3'", 'OP1', 'OP2', "O5'", "C5'", "C4'", "O4'", "C1'", "C2'", 'N1', 'C6', 'C5', 'C4', 'O4', 'N3', 'C2', 'O2', 'C7', "H5'", "H5''", "H4'", "H3'", "H2'", "H2''", "H1'", 'H3', 'H71', 'H72', 'H73', 'H6', "HO3'"]}
     
     def __init__(self, inFile):
-        '''
-        Constructor
-        '''
         self.inFile=inFile
         (self.inFilePath,self.inFileName)=ntpath.split(self.inFile)
         self.read_map_file()
         self.logFile=self.inFile.split("."+self.inFileName.split(".")[-1])[0]+"_.log"
         self.outFile=self.inFile.split("."+self.inFileName.split(".")[-1])[0]+"_.str"
         #print self.logFile
+        self.convert()
         
     def read_map_file(self):
         '''Reads the NEF_NMRSTAR_equivalence.csv file and create a mapping as a list'''
@@ -93,79 +91,7 @@ class NEFtoSTAR(object):
                     map_dat.append(r)
         self.map=map(list,zip(*map_dat))
     
-    def translate(self):
-        if ".nef" in self.inFile:                                          #lookup index(li) retrieve index(ri) 0-nef 1-star-auth-tag,2-star-tag 
-            (li,ri)=(0,1)                                                   # for net to star li=0 and ri=1 and for star to nef li=1 and ri=0
-        elif ".str" in self.inFile:
-            (li,ri)=(1,0)
-        else:
-            print "Invalid input file"
-            exit(1)
-        self.inData=bmrb.Entry.from_file(self.inFile)                     #parse the NEF file
-        self.outData=bmrb.Entry.from_scratch(self.inData.entry_id)        # creates an empty NMR-STAR data structure
-        for saveframe in self.inData:                                      # for every saveframe
-            #print saveframe.name,saveframe.category()
-            if saveframe.get_tag("sf_category")[0] in self.map[li]:
-                sf=bmrb.Saveframe.from_scratch(saveframe.name)                  # create an equivalent NMR-STAR saveframe 
-                for tag in saveframe.tags:                                      # for every tag in the saveframe 
-                    in_tag="%s.%s"%(saveframe.tag_prefix,tag[0])
-                    try:
-                        out_tag=self.map[ri][self.map[li].index(in_tag)]            # get the equivalent tag from the mapping 
-                    except ValueError:
-                        print "Missing tag",in_tag
-                        out_tag=""
-                    if out_tag!="":
-                        if out_tag.split(".")[1]=="Sf_category" or out_tag.split(".")[1]=="sf_category":
-                            out_category=self.map[ri][self.map[li].index(tag[1])] # Only for saveframe category find the corresponding NMR-STAR category
-                            sf.add_tag(out_tag,out_category)                   # add the tag value
-                        else:
-                            sf.add_tag(out_tag,tag[1])                         # for rest of the tags simply copy the tag value
-                for loop in saveframe:                                          # for every loop in the saveframve
-                    ll=bmrb.Loop.from_scratch()                                 # create a NMR-STAR loop from the scratch 
-                    missing_col=[]                                              # to collect the information about missing columns in the loop
-                    for coln in loop.columns:                                   # for every columnn in the loop
-                        inl_tag="%s.%s"%(loop.category,coln)
-                        try:                     # extract the column name tag
-                            outl_tag=self.map[ri][self.map[li].index(inl_tag)]           # find the equivalent NMR-STAR column name tag
-                        except ValueError:
-                            print "Missing tag",inl_tag
-                            outl_tag=""
-                        if outl_tag!="":                                          # If there is no mapping add the column index to missing column 
-                            ll.add_column(outl_tag)                               # otherwise add column to loop
-                        else:
-                            missing_col.append(loop.columns.index(coln))
-                    if len(missing_col)==0:                                     # If there is no missing column copy the data
-                        for dat in loop.data:
-                            ll.add_data(dat[:])
-                    else:
-                        for dat in loop.data:
-                            dat2=dat[:]
-                            #print dat,missing_col
-                            for m in sorted(missing_col,reverse=True):
-                                #print dat,m
-                                del dat2[m]
-                            ll.add_data(dat2[:])
-                        #print ll
-                                
-                        
-                    if ll.data: sf.add_loop(ll)                                             # add the loop to saveframe
-                self.outData.add_saveframe(sf)                                 # add the saveframe to data structure
-            else:
-                print "Missing entire saveframe",saveframe.name
-        (file_path,file_name)=ntpath.split(self.inFile)                        # write output file
-        if file_path=="": file_path="."
-        if ".nef" in file_name:
-            out_file_name="%s_.str"%(file_name.split(".nef")[0])
-            out_file_name2="%s_.nef"%(file_name.split(".nef")[0])
-        else:
-            out_file_name="%s_.nef"%(file_name.split(".str")[0])
-        outfile=file_path+"/"+out_file_name
-        outfile2=file_path+"/"+out_file_name2
-        with open(outfile,'w') as strfile:
-            strfile.write(str(self.outData))
-        with open(outfile2,'w') as strfile2:
-            strfile2.write(str(self.inData))
-            
+  
     
     def convert(self):
         self.logfile=open(self.logFile,'w')
@@ -173,6 +99,7 @@ class NEFtoSTAR(object):
         self.logfile.write("%s:%s\n"%(string.ljust("Output",25),self.outFile))
         self.logfile.write("%s:%s\n"%(string.ljust("Log ",25),self.logFile))
         self.logfile.write("%s:%s\n"%(string.ljust("Translator Version",25),self.__version__))
+        self.logfile.write("%s:%s\n"%(string.ljust("STAR parser Version",25),bmrb._VERSION))
         self.logfile.write("%s:%s\n\n"%(string.ljust("Date",25),self.st(time.time())))
         if ".nef" in self.inFile:
             self.nef2star=True
@@ -339,7 +266,7 @@ class NEFtoSTAR(object):
                                         dat3=dat2[:]
                                     ll.add_data(dat3[:])
                                        
-                        if ll.data: sf.add_loop(ll)
+                        if not self.is_empty(ll.data): sf.add_loop(ll)
                         #print sf
                         #print "%s.Details"%(sf.tag_prefix)
                         
@@ -362,7 +289,7 @@ class NEFtoSTAR(object):
                         ll.add_data(d[:-1])
                     for loop in saveframe:
                         ll.add_data([loop.category,str(loop)])
-                    if ll.data: sf.add_loop(ll)
+                    if not self.is_empty(ll.data): sf.add_loop(ll)
                     self.outData.add_saveframe(sf)    
                     #print "Ignoring saveframe",s                                 # add the saveframe to data structure
 #         (file_path,file_name)=ntpath.split(self.inFile)                        # write output file
@@ -376,11 +303,22 @@ class NEFtoSTAR(object):
 #         outfile=file_path+"/"+out_file_name
 #         outfile2=file_path+"/"+out_file_name2
         #print outfile2,outfile
+        self.logfile.write("%s\tWritting output.........\n"%(self.st(time.time())))
         with open(self.outFile,'w') as strfile:
             strfile.write(str(self.outData))
+        self.logfile.write("%s\tOutput written\n"%(self.st(time.time())))
+        self.logfile.write("%s\tFinished sucessfully\n"%(self.st(time.time())))
         self.logfile.close()
 #         with open(outfile2,'w') as strfile2:
 #             strfile2.write(str(self.inData))
+    
+    def is_empty(self,input_list):
+        """Recursively iterate through values in nested lists."""
+        for item in input_list:
+            if not isinstance(item, list) or not self.is_empty(item):
+                return False
+        return True
+        
                                 
                         
     
@@ -457,8 +395,6 @@ if __name__=="__main__":
     fname=sys.argv[1]
     #nt=NEFtoSTAR("/home/kumaran/git/NEF/specification/Commented_Example.nef")
     nt=NEFtoSTAR(fname)
-    nt.convert()
-    
     #neflist=["CCPN_1nk2_docr.nef", "CCPN_2mqq_docr.nef","CCPN_Commented_Example.nef","CCPN_Sec5Part3.nef","CCPN_2kko_docr.nef","CCPN_2mtv_docr.nef","CCPN_H1GI_clean.nef","CCPN_XplorNIH-simple.nef"]
     
 #     for fname in neflist:
