@@ -131,7 +131,10 @@ class NEFtoSTAR(object):
                                     out_category=self.map[1][self.map[0].index(tag[1])]
                                     sf.add_tag(out_star_tag,out_category)
                                 else:
-                                    sf.add_tag(out_star_tag,tag[1])
+                                    if out_star_tag=="_Entry.NMR_STAR_version":
+                                        sf.add_tag(out_star_tag,'3.2.0.1')
+                                    else:
+                                        sf.add_tag(out_star_tag,tag[1])
                             else:
                                 sf.add_tag(out_auth_tag,tag[1])
                                 sf.add_tag(out_star_tag,tag[1])
